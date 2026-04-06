@@ -18,6 +18,7 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     color: #f4f4f5;
     overflow: hidden;
+    overflow-y: auto;
   }
   .container {
     display: flex;
@@ -41,7 +42,15 @@
     color: #a1a1aa;
   }
   .hud span { color: #E05A6D; font-weight: 600; }
+  .canvas-wrap {
+    position: relative;
+    width: 480px;
+    max-width: calc(100vw - 32px);
+    aspect-ratio: 1;
+  }
   canvas {
+    width: 100%;
+    height: 100%;
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-radius: 8px;
     box-shadow:
@@ -90,6 +99,42 @@
     color: #2a2d36;
     letter-spacing: 1px;
   }
+  .mobile-controls {
+    display: none;
+    gap: 6px;
+    justify-content: center;
+    align-items: center;
+    padding-top: 8px;
+    touch-action: manipulation;
+  }
+  .mobile-controls button {
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(255,255,255,0.06);
+    color: #a1a1aa;
+    font-size: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+  .mobile-controls button:active {
+    background: rgba(224, 90, 109, 0.2);
+    border-color: rgba(224, 90, 109, 0.4);
+    color: #E05A6D;
+  }
+  .dpad { display: grid; grid-template: auto auto auto / auto auto auto; gap: 4px; }
+  .dpad button { width: 50px; height: 50px; }
+  @media (pointer: coarse), (max-width: 520px) {
+    .mobile-controls { display: flex; }
+    .controls { display: none; }
+    h1 { font-size: 22px; letter-spacing: 3px; }
+    .hud { font-size: 12px; gap: 20px; }
+  }
 </style>
 </head>
 <body>
@@ -100,14 +145,27 @@
     &nbsp;&middot;&nbsp;
     Best <span id="best">0</span>
   </div>
-  <div style="position:relative">
+  <div class="canvas-wrap">
     <canvas id="c" width="480" height="480"></canvas>
     <div class="overlay active" id="overlay">
-      <div class="msg" id="msg">Press Space to Start</div>
-      <div class="sub" id="sub">Arrow keys or WASD to move</div>
+      <div class="msg" id="msg">Tap to Start</div>
+      <div class="sub" id="sub">Swipe or use buttons to move</div>
     </div>
   </div>
   <div class="controls">SPACE to pause &middot; Arrow keys / WASD to move</div>
+  <div class="mobile-controls" id="mobileControls">
+    <div class="dpad">
+      <div></div>
+      <button id="btnUp" aria-label="Up">&#9650;</button>
+      <div></div>
+      <button id="btnLeft" aria-label="Left">&#9664;</button>
+      <div></div>
+      <button id="btnRight" aria-label="Right">&#9654;</button>
+      <div></div>
+      <button id="btnDown" aria-label="Down">&#9660;</button>
+      <div></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -185,7 +243,8 @@ function die() {
   }
   // Death particles along the whole snake
   for (const s of snake) spawnParticles(s.x, s.y);
-  showOverlay('Game Over', 'Press Space to Restart');
+  const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+  showOverlay('Game Over', isMobile ? 'Tap to Restart' : 'Press Space to Restart');
 }
 
 function showOverlay(msg, sub) {
@@ -328,7 +387,8 @@ document.addEventListener('keydown', e => {
     if (state === 'idle' || state === 'dead') return startGame();
     if (state === 'play') {
       state = 'paused';
-      showOverlay('Paused', 'Press Space to Resume');
+      const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+      showOverlay('Paused', isMobile ? 'Tap to Resume' : 'Press Space to Resume');
       return;
     }
     if (state === 'paused') {
@@ -353,19 +413,23 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// Touch controls
+// Touch controls — listen on the whole game area so overlay doesn't block
+const gameArea = canvas.parentElement;
 let touchStart = null;
-canvas.addEventListener('touchstart', e => {
+gameArea.addEventListener('touchstart', e => {
   touchStart = {x: e.touches[0].clientX, y: e.touches[0].clientY};
   e.preventDefault();
-});
-canvas.addEventListener('touchend', e => {
+}, {passive: false});
+gameArea.addEventListener('touchend', e => {
   if (!touchStart) return;
   const dx = e.changedTouches[0].clientX - touchStart.x;
   const dy = e.changedTouches[0].clientY - touchStart.y;
+  touchStart = null;
   if (Math.abs(dx) < 20 && Math.abs(dy) < 20) {
-    // Tap — start/pause
+    // Tap — start/pause/resume
     if (state === 'idle' || state === 'dead') return startGame();
+    if (state === 'play') { state = 'paused'; showOverlay('Paused', 'Tap to Resume'); return; }
+    if (state === 'paused') { state = 'play'; hideOverlay(); gameLoop(); return; }
     return;
   }
   let nd;
@@ -373,7 +437,41 @@ canvas.addEventListener('touchend', e => {
   else nd = dy > 0 ? {x:0,y:1} : {x:0,y:-1};
   if (nd.x !== -dir.x || nd.y !== -dir.y) nextDir = nd;
   e.preventDefault();
+}, {passive: false});
+
+// Overlay click for desktop mouse clicks too
+document.getElementById('overlay').addEventListener('click', () => {
+  if (state === 'idle' || state === 'dead') return startGame();
+  if (state === 'paused') { state = 'play'; hideOverlay(); gameLoop(); }
 });
+
+// D-pad buttons
+function bindDpad(id, nd) {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  btn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (state === 'idle' || state === 'dead') startGame();
+    if (nd.x !== -dir.x || nd.y !== -dir.y) nextDir = nd;
+  }, {passive: false});
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    if (state === 'idle' || state === 'dead') startGame();
+    if (nd.x !== -dir.x || nd.y !== -dir.y) nextDir = nd;
+  });
+}
+bindDpad('btnUp', {x:0,y:-1});
+bindDpad('btnDown', {x:0,y:1});
+bindDpad('btnLeft', {x:-1,y:0});
+bindDpad('btnRight', {x:1,y:0});
+
+// Detect touch device and set appropriate text
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+if (!isTouchDevice) {
+  document.getElementById('msg').textContent = 'Press Space to Start';
+  document.getElementById('sub').textContent = 'Arrow keys or WASD to move';
+}
 
 // Init
 state = 'idle';
