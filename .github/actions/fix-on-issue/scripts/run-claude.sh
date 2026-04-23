@@ -102,6 +102,12 @@ done
 [[ "${status}" == "running" ]] || { echo "fork never reached running"; exit 1; }
 echo "::endgroup::"
 
+# ── Point apex proxy at port 3000 ────────────────────────────────────
+# Fresh VMs get auto-proxy at port 8000 by default; our app is on 3000.
+echo "::group::Set apex proxy to port 3000"
+grpc_call SetProxyPort "$(jq -nc --arg vm "${VM_NAME}" '{name:"",vm_name:$vm,port:"3000"}')" >/dev/null
+echo "::endgroup::"
+
 # ── Sync repo to latest default branch ───────────────────────────────
 echo "::group::Sync repo to origin/${DEFAULT_BRANCH}"
 exec_in_vm "set -e; cd ${WORKDIR} && git fetch origin && git reset --hard origin/${DEFAULT_BRANCH}"
