@@ -1,0 +1,22 @@
+name: Fix issue with Claude
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  fix:
+    if: github.event.label.name == 'claude-fix'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/fix-on-issue
+        with:
+          boxd-api-key: ${{ secrets.BOXD_API_KEY }}
+          boxd-api-url: https://boxd-stg.sh
+          golden-vm: red-rock
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
