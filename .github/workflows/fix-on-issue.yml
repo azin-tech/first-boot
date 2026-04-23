@@ -3,10 +3,16 @@ name: Fix issue with Claude
 on:
   issues:
     types: [labeled]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to fix'
+        required: true
+        type: string
 
 jobs:
   fix:
-    if: github.event.label.name == 'claude-fix'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'claude-fix'
     runs-on: ubuntu-latest
     permissions:
       contents: write
