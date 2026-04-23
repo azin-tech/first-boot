@@ -45,21 +45,7 @@ outputs:
 runs:
   using: 'composite'
   steps:
-    - name: Guard — label present
-      id: guard
-      shell: bash
-      run: |
-        set -euo pipefail
-        labels='${{ toJSON(github.event.issue.labels) }}'
-        target='${{ inputs.label }}'
-        if ! echo "$labels" | jq -e --arg t "$target" '.[] | select(.name == $t)' >/dev/null; then
-          echo "skip=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "skip=false" >> "$GITHUB_OUTPUT"
-        fi
-
     - name: Install grpcurl
-      if: steps.guard.outputs.skip != 'true'
       shell: bash
       run: |
         set -euo pipefail
@@ -70,7 +56,6 @@ runs:
         grpcurl -version
 
     - name: Exchange API key for JWT
-      if: steps.guard.outputs.skip != 'true'
       shell: bash
       env:
         BOXD_API_KEY: ${{ inputs.boxd-api-key }}
@@ -87,7 +72,6 @@ runs:
         echo "BOXD_GRPC_HOST=${host}:9443" >> "$GITHUB_ENV"
 
     - name: Fork golden, sync repo, run Claude
-      if: steps.guard.outputs.skip != 'true'
       id: create-vm
       shell: bash
       env:
@@ -102,7 +86,7 @@ runs:
       run: ${{ github.action_path }}/scripts/run-claude.sh
 
     - name: Apply patch and open PR
-      if: steps.guard.outputs.skip != 'true' && steps.create-vm.outputs.has-patch == 'true'
+      if: steps.create-vm.outputs.has-patch == 'true'
       id: open-pr
       shell: bash
       env:

@@ -3,16 +3,17 @@ name: Fix issue with Claude
 on:
   issues:
     types: [labeled]
-  workflow_dispatch:
-    inputs:
-      issue_number:
-        description: 'Issue number to fix'
-        required: true
-        type: string
+  issue_comment:
+    types: [created]
 
 jobs:
   fix:
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'claude-fix'
+    # Triggers:
+    #  - label `claude-fix` added to an issue
+    #  - comment containing `/claude-fix` on an issue (ignore PR comments)
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'claude-fix') ||
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && contains(github.event.comment.body, '/claude-fix'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
