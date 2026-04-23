@@ -29,7 +29,9 @@ Body:
      http://localhost:3000
    ```
 3. Make the minimal change required to fix it.
-4. If your fix touched `server.py`, restart the Python server:
+4. **Always restart the Python server after any file change.** `server.py`
+   reads `index.html` once at startup and caches it in memory, so even
+   edits to `index.html` only take effect after a restart:
    ```bash
    pkill -f "python3 server.py" || true
    sleep 1
@@ -37,8 +39,6 @@ Body:
    sleep 2
    curl -sf http://localhost:3000/ >/dev/null   # sanity
    ```
-   If your fix only touched `index.html`, no restart needed — the server
-   re-renders the template on each request.
 5. **For UI changes**, capture an "after" screenshot:
    ```bash
    /usr/bin/google-chrome --headless --disable-gpu --no-sandbox \
