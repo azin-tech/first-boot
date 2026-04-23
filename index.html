@@ -281,17 +281,17 @@ function drawSnake() {
     );
 
     if (i === 0) {
-      // Head: bright white/action color
-      g.addColorStop(0, '#ffffff');
-      g.addColorStop(1, '#d4d4d8');
+      // Head: bright green
+      g.addColorStop(0, '#4ade80');
+      g.addColorStop(1, '#22c55e');
       // Glow
-      ctx.shadowColor = 'rgba(244, 244, 245, 0.4)';
+      ctx.shadowColor = 'rgba(34, 197, 94, 0.6)';
       ctx.shadowBlur = 15;
     } else {
-      // Body: fading monochrome
+      // Body: fading green
       const alpha = 0.85 - t * 0.45;
-      g.addColorStop(0, `rgba(244, 244, 245, ${alpha})`);
-      g.addColorStop(1, `rgba(161, 161, 170, ${alpha})`);
+      g.addColorStop(0, `rgba(34, 197, 94, ${alpha})`);
+      g.addColorStop(1, `rgba(21, 128, 61, ${alpha})`);
       ctx.shadowColor = 'transparent';
       ctx.shadowBlur = 0;
     }
