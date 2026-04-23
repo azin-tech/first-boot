@@ -29,5 +29,5 @@ jobs:
         with:
           boxd-api-key: ${{ secrets.BOXD_API_KEY }}
           boxd-api-url: https://boxd-stg.sh
-          golden-vm: red-rock
+          golden-vm: snake-game-production
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
