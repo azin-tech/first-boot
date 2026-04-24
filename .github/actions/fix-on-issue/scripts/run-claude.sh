@@ -53,22 +53,29 @@ grpc_call() {
 # exec_in_vm "<bash command>" — runs via streaming Exec RPC.
 # The remote default shell is dash (sh) — wrap in bash -lc so bash
 # features ([[, arrays, pipefail, etc.) are available.
-# Echoes stdout+stderr to our stdout. Returns the VM-side exit code.
+# Retries up to 5x on "connection to VM timed out" (freshly-forked VMs
+# sometimes report running before their network path is fully up).
 exec_in_vm() {
   local cmd=$1
   local wrapped="bash -lc $(printf %q "${cmd}")"
-  local msg out data rc
+  local msg out data rc attempt
   msg=$(jq -nc --arg vm "${FORK_ID}" --arg cmd "${wrapped}" '{vm_id:$vm,command:$cmd}')
-  out=$(printf '%s' "${msg}" | grpcurl -plaintext -emit-defaults \
-    -max-time "${VM_TIMEOUT_SECS}" \
-    -H "authorization: Bearer ${BOXD_JWT}" \
-    -d @ \
-    "${BOXD_GRPC_HOST}" boxd.api.v1.BoxdApi/Exec 2>&1) || {
-      echo "!! grpc Exec failed:" >&2
-      echo "${out}" >&2
-      return 127
-    }
-  # Reassemble stdout (and stderr, interleaved) from base64 data chunks.
+  for attempt in 1 2 3 4 5; do
+    out=$(printf '%s' "${msg}" | grpcurl -plaintext -emit-defaults \
+      -max-time "${VM_TIMEOUT_SECS}" \
+      -H "authorization: Bearer ${BOXD_JWT}" \
+      -d @ \
+      "${BOXD_GRPC_HOST}" boxd.api.v1.BoxdApi/Exec 2>&1) && break || {
+        if echo "${out}" | grep -qE "connection to VM|Unavailable|No route to host"; then
+          echo "  (exec attempt ${attempt} hit transient VM-unreachable, retrying in $((attempt*3))s...)" >&2
+          sleep $((attempt*3))
+          continue
+        fi
+        echo "!! grpc Exec failed:" >&2
+        echo "${out}" >&2
+        return 127
+      }
+  done
   data=$(echo "${out}" | jq -s -r 'map(.data // "") | join("")')
   if [[ -n "${data}" ]]; then
     echo "${data}" | base64 -d 2>/dev/null || echo "${data}"
