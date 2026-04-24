@@ -53,7 +53,10 @@ jobs:
           set -euo pipefail
           # One-line the command so printf %q doesn't emit ANSI-C quoting
           # that would be destroyed by the JSON round-trip through grpcurl.
-          inner='cd /home/boxd/first-boot && git fetch origin && git reset --hard origin/master && (pkill -f "python3 server.py" || true) && sleep 1 && (setsid nohup python3 server.py >/tmp/server.log 2>&1 </dev/null &) && sleep 2 && curl -sf -o /dev/null http://localhost:3000/ && echo "deployed $(git rev-parse --short HEAD)"'
+          # Kill the server by port (fuser), not by name (pkill -f), because
+          # the deploy script itself contains the literal "python3 server.py"
+          # and pkill -f would match its own bash and commit suicide.
+          inner='cd /home/boxd/first-boot && git fetch origin && git reset --hard origin/master && (fuser -k 3000/tcp 2>/dev/null || true) && sleep 1 && (setsid nohup python3 server.py >/tmp/server.log 2>&1 </dev/null &) && sleep 2 && curl -sf -o /dev/null http://localhost:3000/ && echo "deployed $(git rev-parse --short HEAD)"'
           wrapped="bash -lc $(printf %q "$inner")"
           msg=$(jq -nc --arg vm "$PROD_VM_ID" --arg cmd "$wrapped" '{vm_id:$vm,command:$cmd}')
 
