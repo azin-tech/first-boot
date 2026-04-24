@@ -24,8 +24,11 @@ echo "vm-name=${VM_NAME}" >> "$GITHUB_OUTPUT"
 # proxy routes the apex domain to the primary web port on the VM.
 API_HOST="${BOXD_GRPC_HOST%:9443}"
 PREVIEW_URL="https://${VM_NAME}.${API_HOST}"
+SSH_CMD="ssh ${VM_NAME}.${API_HOST}"
 echo "preview-url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
+echo "ssh-cmd=${SSH_CMD}" >> "$GITHUB_OUTPUT"
 echo "preview at ${PREVIEW_URL}"
+echo "ssh: ${SSH_CMD}"
 
 # ── Status comment helper (no-op if inputs missing) ──────────────────
 update_status() {
@@ -115,7 +118,9 @@ echo "::endgroup::"
 update_status "👋 **Claude is on it.** [view run]($RUN_URL)
 
 - ✅ preview VM booted: ${PREVIEW_URL}
-- ⏳ syncing repo + reading the issue"
+- ⏳ syncing repo + reading the issue
+
+_want to jump in? \`${SSH_CMD}\`_"
 
 # ── Point apex proxy at port 3000 ────────────────────────────────────
 # Fresh VMs get auto-proxy at port 8000 by default; our app is on 3000.
@@ -143,7 +148,9 @@ update_status "👋 **Claude is on it.** [view run]($RUN_URL)
 
 - ✅ preview VM booted: ${PREVIEW_URL}
 - ✅ repo synced, prompt loaded
-- 🤖 Claude is reading the code and making the fix"
+- 🤖 Claude is reading the code and making the fix
+
+_want to jump in? \`${SSH_CMD}\`_"
 
 # ── Run Claude ───────────────────────────────────────────────────────
 echo "::group::Run Claude"
@@ -157,7 +164,9 @@ update_status "👋 **Claude is on it.** [view run]($RUN_URL)
 - ✅ preview VM booted: ${PREVIEW_URL}
 - ✅ repo synced, prompt loaded
 - ✅ Claude finished, extracting the patch
-- ⏳ opening the PR"
+- ⏳ opening the PR
+
+_want to jump in? \`${SSH_CMD}\`_"
 
 # ── Check for commits; extract patch ─────────────────────────────────
 echo "::group::Extract patch"

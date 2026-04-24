@@ -116,6 +116,7 @@ runs:
         PATCH_FILE: ${{ steps.create-vm.outputs.patch-file }}
         BRANCH_NAME: claude-fix/issue-${{ github.event.issue.number }}
         PREVIEW_URL: ${{ steps.create-vm.outputs.preview-url }}
+        SSH_CMD: ${{ steps.create-vm.outputs.ssh-cmd }}
       run: |
         set -euo pipefail
         git config user.name "boxd-bot"
@@ -137,6 +138,9 @@ runs:
         if [[ -n "${PREVIEW_URL:-}" ]]; then
           body="${body}"$'\n\n'"**Live preview** (boxd fork): ${PREVIEW_URL}"
         fi
+        if [[ -n "${SSH_CMD:-}" ]]; then
+          body="${body}"$'\n\n'"**Want to iterate?** SSH in and push to this branch — changes reflect live on the preview URL:"$'\n\n'"\`\`\`"$'\n'"${SSH_CMD}"$'\n'"\`\`\`"
+        fi
         [[ -n "$shots" ]] && body="${body}"$'\n'"${shots}"
 
         pr_url=$(gh pr create \
@@ -153,6 +157,7 @@ runs:
         COMMENT_ID: ${{ steps.status.outputs.comment-id }}
         PR_URL: ${{ steps.open-pr.outputs.pr-url }}
         PREVIEW_URL: ${{ steps.create-vm.outputs.preview-url }}
+        SSH_CMD: ${{ steps.create-vm.outputs.ssh-cmd }}
         HAS_PATCH: ${{ steps.create-vm.outputs.has-patch }}
         RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: |
@@ -161,6 +166,7 @@ runs:
           body="🎉 **Opened PR** → ${PR_URL}
 
         - Live preview: ${PREVIEW_URL}
+        - Iterate: \`${SSH_CMD}\` then push to the branch
         - [workflow run](${RUN_URL})"
         elif [[ "${HAS_PATCH:-}" == "false" ]]; then
           body="🤷 **No changes produced.** Claude exited without committing anything.
