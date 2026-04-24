@@ -125,7 +125,7 @@ echo "::endgroup::"
 update_status "👋 **Claude is on it.** [view run]($RUN_URL)
 
 - ✅ preview VM booted: ${PREVIEW_URL}
-- ⏳ syncing repo + reading the issue
+- ⏳ loading the issue into Claude
 
 _want to jump in? \`${SSH_CMD}\`_"
 
@@ -154,7 +154,6 @@ echo "::endgroup::"
 update_status "👋 **Claude is on it.** [view run]($RUN_URL)
 
 - ✅ preview VM booted: ${PREVIEW_URL}
-- ✅ repo synced, prompt loaded
 - 🤖 Claude is reading the code and making the fix
 
 _want to jump in? \`${SSH_CMD}\`_"
@@ -169,8 +168,7 @@ echo "::endgroup::"
 update_status "👋 **Claude is on it.** [view run]($RUN_URL)
 
 - ✅ preview VM booted: ${PREVIEW_URL}
-- ✅ repo synced, prompt loaded
-- ✅ Claude finished, extracting the patch
+- ✅ Claude made the fix
 - ⏳ opening the PR
 
 _want to jump in? \`${SSH_CMD}\`_"
