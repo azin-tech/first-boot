@@ -139,7 +139,7 @@ runs:
           body="${body}"$'\n\n'"**Live preview** (boxd fork): ${PREVIEW_URL}"
         fi
         if [[ -n "${SSH_CMD:-}" ]]; then
-          body="${body}"$'\n\n'"**Want to iterate?** SSH in and push to this branch — changes reflect live on the preview URL:"$'\n\n'"\`\`\`"$'\n'"${SSH_CMD}"$'\n'"\`\`\`"
+          body="${body}"$'\n\n'"**Change the app live:** SSH in and push to this branch — changes reflect live on the preview URL."$'\n\n'"\`\`\`"$'\n'"${SSH_CMD}"$'\n'"\`\`\`"
         fi
         [[ -n "$shots" ]] && body="${body}"$'\n'"${shots}"
 
@@ -166,7 +166,7 @@ runs:
           body="🎉 **Opened PR** → ${PR_URL}
 
         - Live preview: ${PREVIEW_URL}
-        - Iterate: \`${SSH_CMD}\` then push to the branch
+        - Change the app live: \`${SSH_CMD}\` then push to the branch
         - [workflow run](${RUN_URL})"
         elif [[ "${HAS_PATCH:-}" == "false" ]]; then
           body="🤷 **No changes produced.** Claude exited without committing anything.
