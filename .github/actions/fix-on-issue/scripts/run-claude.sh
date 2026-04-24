@@ -27,6 +27,16 @@ PREVIEW_URL="https://${VM_NAME}.${API_HOST}"
 echo "preview-url=${PREVIEW_URL}" >> "$GITHUB_OUTPUT"
 echo "preview at ${PREVIEW_URL}"
 
+# ── Status comment helper (no-op if inputs missing) ──────────────────
+update_status() {
+  local body=$1
+  if [[ -z "${STATUS_COMMENT_ID:-}" || -z "${GH_TOKEN:-}" ]]; then
+    return 0
+  fi
+  gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${STATUS_COMMENT_ID}" \
+    -f body="$body" >/dev/null 2>&1 || true
+}
+
 # ── gRPC helpers ─────────────────────────────────────────────────────
 
 grpc_call() {
@@ -102,6 +112,11 @@ done
 [[ "${status}" == "running" ]] || { echo "fork never reached running"; exit 1; }
 echo "::endgroup::"
 
+update_status "👋 **Claude is on it.** [view run]($RUN_URL)
+
+- ✅ preview VM booted: ${PREVIEW_URL}
+- ⏳ syncing repo + reading the issue"
+
 # ── Point apex proxy at port 3000 ────────────────────────────────────
 # Fresh VMs get auto-proxy at port 8000 by default; our app is on 3000.
 echo "::group::Set apex proxy to port 3000"
@@ -124,12 +139,25 @@ upload_req=$(jq -nc --arg vm "${FORK_ID}" --arg path "${WORKDIR}/.claude-prompt.
 grpc_call UploadFile "${upload_req}" >/dev/null
 echo "::endgroup::"
 
+update_status "👋 **Claude is on it.** [view run]($RUN_URL)
+
+- ✅ preview VM booted: ${PREVIEW_URL}
+- ✅ repo synced, prompt loaded
+- 🤖 Claude is reading the code and making the fix"
+
 # ── Run Claude ───────────────────────────────────────────────────────
 echo "::group::Run Claude"
 # Export ANTHROPIC_API_KEY in the VM via an in-shell assignment; we can't
 # pass env via the current proto's Exec, so inline it.
 exec_in_vm "cd ${WORKDIR} && export ANTHROPIC_API_KEY='${ANTHROPIC_API_KEY}' && cat .claude-prompt.md | claude -p --max-turns ${MAX_TURNS} --dangerously-skip-permissions 2>&1 | tee .claude.log"
 echo "::endgroup::"
+
+update_status "👋 **Claude is on it.** [view run]($RUN_URL)
+
+- ✅ preview VM booted: ${PREVIEW_URL}
+- ✅ repo synced, prompt loaded
+- ✅ Claude finished, extracting the patch
+- ⏳ opening the PR"
 
 # ── Check for commits; extract patch ─────────────────────────────────
 echo "::group::Extract patch"

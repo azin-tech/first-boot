@@ -45,6 +45,23 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Post pickup comment
+      id: status
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        ISSUE_NUMBER: ${{ github.event.issue.number }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+        body="👋 **Claude is on it.** [view run]($RUN_URL)
+
+        - ⏳ booting a fresh preview VM"
+        cid=$(gh api -X POST "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+          -f body="$body" --jq .id)
+        echo "comment-id=${cid}" >> "$GITHUB_OUTPUT"
+        echo "posted status comment #${cid}"
+
     - name: Install grpcurl
       shell: bash
       run: |
@@ -83,6 +100,9 @@ runs:
         VM_TIMEOUT_SECS: ${{ inputs.vm-timeout-secs }}
         MAX_TURNS: ${{ inputs.max-turns }}
         ACTION_PATH: ${{ github.action_path }}
+        STATUS_COMMENT_ID: ${{ steps.status.outputs.comment-id }}
+        GH_TOKEN: ${{ inputs.github-token }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
       run: ${{ github.action_path }}/scripts/run-claude.sh
 
     - name: Apply patch and open PR
@@ -124,6 +144,35 @@ runs:
           --body "$body" \
           --head "$BRANCH_NAME")
         echo "pr-url=$pr_url" >> "$GITHUB_OUTPUT"
+
+    - name: Update status comment with result
+      if: always() && steps.status.outputs.comment-id != ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        COMMENT_ID: ${{ steps.status.outputs.comment-id }}
+        PR_URL: ${{ steps.open-pr.outputs.pr-url }}
+        PREVIEW_URL: ${{ steps.create-vm.outputs.preview-url }}
+        HAS_PATCH: ${{ steps.create-vm.outputs.has-patch }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      run: |
+        set -euo pipefail
+        if [[ -n "${PR_URL:-}" ]]; then
+          body="🎉 **Opened PR** → ${PR_URL}
+
+        - Live preview: ${PREVIEW_URL}
+        - [workflow run](${RUN_URL})"
+        elif [[ "${HAS_PATCH:-}" == "false" ]]; then
+          body="🤷 **No changes produced.** Claude exited without committing anything.
+
+        - [view run](${RUN_URL})"
+        else
+          body="❌ **Something broke.** Check the run for details.
+
+        - [view run](${RUN_URL})"
+        fi
+        gh api -X PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${COMMENT_ID}" \
+          -f body="$body" >/dev/null
 
     # Only destroy here on failure or when Claude produced no patch.
     # On success-with-PR, leave the fork alive so reviewers can poke at it.
